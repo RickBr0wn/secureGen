@@ -1,33 +1,38 @@
+import zxcvbn from 'zxcvbn'
+
 export default function generatePassword(
   length: number,
   includeSpecialChars: boolean,
   includeCapitals: boolean,
-  includeNumerics: boolean
-): [string, string] {
+  includeNumerics: boolean,
+  excludeAmbiguous: boolean = false,
+): [string, number, string] {
   const specials = '!@#$%^&*()_+-=[]{}|;:,.<>?'
   const capitals = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
   const numerics = '0123456789'
+  const ambiguous = '0O1lI'
 
   let charset = 'abcdefghijklmnopqrstuvwxyz'
-  let password = ''
 
   if (includeSpecialChars) charset += specials
   if (includeCapitals) charset += capitals
   if (includeNumerics) charset += numerics
 
+  if (excludeAmbiguous) {
+    charset = charset
+      .split('')
+      .filter(c => !ambiguous.includes(c))
+      .join('')
+  }
+
   const randomBytes = crypto.getRandomValues(new Uint32Array(length))
+  let password = ''
   for (let i = 0; i < length; i++) {
     password += charset[randomBytes[i] % charset.length]
   }
 
-  const allOptions = includeSpecialChars && includeCapitals && includeNumerics
-  const anyOption = includeSpecialChars || includeCapitals || includeNumerics
+  const result = zxcvbn(password)
+  const feedback = result.feedback.suggestions.join(' ') || 'Good password'
 
-  let securityRating = 'very weak'
-  if (length >= 8 && anyOption) securityRating = 'weak'
-  if (length >= 12 && allOptions) securityRating = 'average'
-  if (length >= 16 && allOptions) securityRating = 'good'
-  if (length >= 20 && allOptions) securityRating = 'very good'
-
-  return [password, securityRating]
+  return [password, result.score, feedback]
 }
