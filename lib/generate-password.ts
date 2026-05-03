@@ -15,46 +15,19 @@ export default function generatePassword(
   if (includeCapitals) charset += capitals
   if (includeNumerics) charset += numerics
 
+  const randomBytes = crypto.getRandomValues(new Uint32Array(length))
   for (let i = 0; i < length; i++) {
-    const randomIndex = Math.floor(Math.random() * charset.length)
-    password += charset[randomIndex]
+    password += charset[randomBytes[i] % charset.length]
   }
 
-  // Calculate security rating based on password complexity
+  const allOptions = includeSpecialChars && includeCapitals && includeNumerics
+  const anyOption = includeSpecialChars || includeCapitals || includeNumerics
+
   let securityRating = 'very weak'
-  if (
-    length >= 8 &&
-    (includeSpecialChars || includeCapitals || includeNumerics)
-  ) {
-    securityRating = 'weak'
-  }
-  if (
-    length >= 12 &&
-    (includeSpecialChars || includeCapitals || includeNumerics)
-  ) {
-    securityRating = 'average'
-  }
-  if (
-    length >= 16 &&
-    includeSpecialChars &&
-    includeCapitals &&
-    includeNumerics
-  ) {
-    securityRating = 'good'
-  }
-  if (
-    length >= 20 &&
-    includeSpecialChars &&
-    includeCapitals &&
-    includeNumerics
-  ) {
-    securityRating = 'very good'
-  }
+  if (length >= 8 && anyOption) securityRating = 'weak'
+  if (length >= 12 && allOptions) securityRating = 'average'
+  if (length >= 16 && allOptions) securityRating = 'good'
+  if (length >= 20 && allOptions) securityRating = 'very good'
 
   return [password, securityRating]
 }
-
-// Path: lib/generate-password.ts
-// Created at: 19:45:57 - 11/03/2024
-// Language: Typescript
-// Framework: React/Next.js

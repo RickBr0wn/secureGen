@@ -48,21 +48,27 @@ export default function PasswordGenerator() {
   const onSubmit: SubmitHandler<PasswordOptions> = async (
     data: z.infer<typeof PasswordOptionsSchema>
   ) => {
-    setPassword(
-      generatePassword(
-        data.length[0],
-        data.specials,
-        data.capitals,
-        data.numbers
-      )
+    const newPassword = generatePassword(
+      data.length[0],
+      data.specials,
+      data.capitals,
+      data.numbers
     )
+    setPassword(newPassword)
 
-    await navigator.clipboard.writeText('Copy this text to clipboard')
-
-    toast({
-      title: 'Copied to clipboard',
-      description: 'Your new password has been copied to the clipboard.',
-    })
+    try {
+      await navigator.clipboard.writeText(newPassword[0])
+      toast({
+        title: 'Copied to clipboard',
+        description: 'Your new password has been copied to the clipboard.',
+      })
+    } catch {
+      toast({
+        title: 'Copy failed',
+        description: 'Could not access clipboard. Please copy the password manually.',
+        variant: 'destructive',
+      })
+    }
   }
 
   return (
@@ -183,7 +189,3 @@ export default function PasswordGenerator() {
   )
 }
 
-// Path: components/password-generator/generator.tsx
-// Created at: 21:45:30 - 12/03/2024
-// Language: Typescript
-// Framework: React/Next.js

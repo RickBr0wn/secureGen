@@ -31,15 +31,11 @@ export function DarkModeToggle() {
         <DropdownMenuItem onClick={() => setTheme('dark')}>
           Dark Mode
         </DropdownMenuItem>
-        {/* <DropdownMenuItem onClick={() => setTheme('system')}>
+        <DropdownMenuItem onClick={() => setTheme('system')}>
           System
-        </DropdownMenuItem> */}
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )
 }
 
-// Path: components/nav/dark-mode-toggle.tsx
-// Created at: 16:07:50 - 11/03/2024
-// Language: Typescript
-// Framework: React/Next.js
