@@ -1,6 +1,6 @@
 # SecureGen
 
-Cryptographically secure password and passphrase generator — built with Next.js, React 19, and shadcn/ui.
+Cryptographically secure password and passphrase generator. Built with Next.js, React 19, and shadcn/ui.
 
 **Live:** [secure-gen-three.vercel.app](https://secure-gen-three.vercel.app)
 
@@ -27,8 +27,8 @@ Cryptographically secure password and passphrase generator — built with Next.j
 ### Batch output
 
 - Generates 5 results at a time
-- **Pin individual rows** — locked rows survive Regenerate All
-- **Strength bar** — 5-segment visual indicator (Very Weak → Very Strong) powered by [zxcvbn](https://github.com/dropbox/zxcvbn)
+- **Pin individual rows** - locked rows survive Regenerate All
+- **Strength bar** - 5-segment visual indicator (Very Weak → Very Strong) powered by [zxcvbn](https://github.com/dropbox/zxcvbn)
 - **Crack time estimate** — shown per row (e.g. "centuries to crack")
 - **Composition stats** — character count, symbol count, capitals, numbers
 
