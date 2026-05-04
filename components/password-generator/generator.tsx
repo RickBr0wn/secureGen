@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Control, SubmitHandler, useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Copy, Check } from 'lucide-react'
+import { Copy, Check, Lock, LockOpen, Shield, ShieldCheck, ShieldAlert, Loader2 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Checkbox } from '../ui/checkbox'
 import {
@@ -26,6 +26,7 @@ import { useToast } from '../ui/use-toast'
 import generatePassword from '~/lib/generate-password'
 import generatePassphrase from '~/lib/generate-passphrase'
 import { compositionStats } from '~/lib/composition-stats'
+import { checkPwned } from '~/lib/check-pwned'
 import { usePasswordHistory } from '~/lib/use-password-history'
 import { HistoryPanel } from './history-panel'
 
@@ -55,30 +56,79 @@ const PasswordOptionsSchema = z.object({
 type PasswordOptions = z.infer<typeof PasswordOptionsSchema>
 type GenerateResult = [string, number, string]
 
+type BatchEntry = { result: GenerateResult; pinned: boolean }
+
 type BooleanFieldName = {
   [K in keyof PasswordOptions]: PasswordOptions[K] extends boolean ? K : never
 }[keyof PasswordOptions]
 
-function generateBatch(data: PasswordOptions): GenerateResult[] {
-  return Array.from({ length: BATCH_SIZE }, () =>
-    data.mode === 'password'
-      ? generatePassword(data.length[0], data.specials, data.capitals, data.numbers, data.excludeAmbiguous)
-      : generatePassphrase(data.wordCount[0], data.separator === 'none' ? '' : data.separator, data.capitalize, data.addNumbers)
+const PRESETS = {
+  password: [
+    { label: 'Simple', values: { length: [12], specials: false, capitals: true, numbers: true, excludeAmbiguous: true } },
+    { label: 'Strong', values: { length: [20], specials: true, capitals: true, numbers: true, excludeAmbiguous: false } },
+    { label: 'Max', values: { length: [32], specials: true, capitals: true, numbers: true, excludeAmbiguous: false } },
+  ],
+  passphrase: [
+    { label: '4 words', values: { wordCount: [4], separator: '-', capitalize: true, addNumbers: false } },
+    { label: '6 words', values: { wordCount: [6], separator: '-', capitalize: true, addNumbers: false } },
+    { label: 'With number', values: { wordCount: [4], separator: '-', capitalize: true, addNumbers: true } },
+  ],
+}
+
+const DEFAULT_OPTIONS: PasswordOptions = {
+  mode: 'password',
+  length: [16],
+  specials: true,
+  capitals: true,
+  numbers: true,
+  excludeAmbiguous: false,
+  wordCount: [4],
+  separator: '-',
+  capitalize: true,
+  addNumbers: false,
+}
+
+function generateOne(data: PasswordOptions): GenerateResult {
+  return data.mode === 'password'
+    ? generatePassword(data.length[0], data.specials, data.capitals, data.numbers, data.excludeAmbiguous)
+    : generatePassphrase(data.wordCount[0], data.separator === 'none' ? '' : data.separator, data.capitalize, data.addNumbers)
+}
+
+function regenerateBatch(data: PasswordOptions, current: BatchEntry[]): BatchEntry[] {
+  return current.map(entry =>
+    entry.pinned ? entry : { result: generateOne(data), pinned: false }
   )
 }
 
-function StrengthDot({ score }: { score: number }) {
+function StrengthBar({ score }: { score: number }) {
   return (
-    <span
-      className={`h-2 w-2 rounded-full shrink-0 ${STRENGTH_COLORS[score]}`}
-      title={STRENGTH_LABELS[score]}
-      aria-label={`Strength: ${STRENGTH_LABELS[score]}`}
-    />
+    <div className="flex items-center gap-2 mt-2">
+      <div className="flex gap-0.5 flex-1">
+        {Array.from({ length: 5 }, (_, i) => (
+          <div
+            key={i}
+            className={`h-1 flex-1 rounded-full transition-colors duration-300 ${i <= score ? STRENGTH_COLORS[score] : 'bg-muted'}`}
+          />
+        ))}
+      </div>
+      <span className="text-xs text-muted-foreground w-20 text-right shrink-0 tabular-nums">
+        {STRENGTH_LABELS[score]}
+      </span>
+    </div>
   )
 }
 
-function BatchRow({ text, score, onCopy }: { text: string; score: number; onCopy: (text: string) => void }) {
+type PwnedState = 'idle' | 'checking' | { count: number } | 'error'
+
+function BatchRow({ entry, index, onPin, onCopy }: {
+  entry: BatchEntry
+  index: number
+  onPin: (i: number) => void
+  onCopy: (text: string) => void
+}) {
+  const [text, score, crackTime] = entry.result
   const [copied, setCopied] = useState(false)
+  const [pwnedState, setPwnedState] = useState<PwnedState>('idle')
   const { toast } = useToast()
 
   const handleCopy = async () => {
@@ -96,30 +146,105 @@ function BatchRow({ text, score, onCopy }: { text: string; score: number; onCopy
     }
   }
 
+  const handlePwnedCheck = async () => {
+    if (pwnedState === 'checking') return
+    setPwnedState('checking')
+    try {
+      const count = await checkPwned(text)
+      setPwnedState({ count })
+    } catch {
+      setPwnedState('error')
+    }
+  }
+
+  const pwnedIcon = () => {
+    if (pwnedState === 'checking') return <Loader2 className="h-3.5 w-3.5 animate-spin" />
+    if (pwnedState === 'error') return <ShieldAlert className="h-3.5 w-3.5 text-yellow-500" />
+    if (typeof pwnedState === 'object') {
+      return pwnedState.count > 0
+        ? <ShieldAlert className="h-3.5 w-3.5 text-red-500" />
+        : <ShieldCheck className="h-3.5 w-3.5 text-green-500" />
+    }
+    return <Shield className="h-3.5 w-3.5 text-muted-foreground" />
+  }
+
+  const pwnedLabel = () => {
+    if (typeof pwnedState === 'object') {
+      return pwnedState.count > 0
+        ? `Found in ${pwnedState.count.toLocaleString()} breaches`
+        : 'Not found in breaches'
+    }
+    return 'Check for breaches'
+  }
+
   return (
-    <div className="flex items-center gap-3 rounded-lg border bg-card px-4 py-3 text-left transition-colors hover:bg-accent/50">
-      <div className="flex-1 min-w-0">
-        <span className="font-mono text-sm break-all leading-relaxed">
+    <div className={`rounded-lg border px-4 py-3 transition-all ${
+      entry.pinned
+        ? 'ring-1 ring-primary/50 bg-primary/5 border-primary/30'
+        : 'bg-card hover:bg-accent/30'
+    }`}>
+      <div className="flex items-start gap-2">
+        <span className="flex-1 font-mono text-sm break-all leading-relaxed pt-0.5">
           {text}
         </span>
-        <p className="text-xs text-slate-400 dark:text-slate-500 tabular-nums mt-0.5">
-          {compositionStats(text)}
-        </p>
+        <div className="flex items-center gap-0.5 shrink-0">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => onPin(index)}
+            aria-label={entry.pinned ? 'Unpin' : 'Pin this password'}
+            title={entry.pinned ? 'Unpin' : 'Pin'}
+          >
+            {entry.pinned
+              ? <Lock className="h-3.5 w-3.5 text-primary" />
+              : <LockOpen className="h-3.5 w-3.5 text-muted-foreground" />
+            }
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={handlePwnedCheck}
+            aria-label={pwnedLabel()}
+            title={pwnedLabel()}
+          >
+            {pwnedIcon()}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={handleCopy}
+            aria-label="Copy to clipboard"
+          >
+            {copied
+              ? <Check className="h-3.5 w-3.5 text-green-500" />
+              : <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+            }
+          </Button>
+        </div>
       </div>
-      <StrengthDot score={score} />
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8 shrink-0"
-        onClick={handleCopy}
-        aria-label="Copy to clipboard"
-      >
-        {copied
-          ? <Check className="h-4 w-4 text-green-500" />
-          : <Copy className="h-4 w-4 text-muted-foreground" />
-        }
-      </Button>
+
+      <p className="text-xs text-muted-foreground mt-1 tabular-nums">
+        {compositionStats(text)}
+        {crackTime && (
+          <span className="text-slate-400 dark:text-slate-500"> · {crackTime} to crack</span>
+        )}
+        {typeof pwnedState === 'object' && (
+          <span className={pwnedState.count > 0 ? ' · text-red-500' : ' · text-green-600'}>
+            {pwnedState.count > 0
+              ? ` · ⚠ ${pwnedState.count.toLocaleString()} breaches`
+              : ' · ✓ not breached'
+            }
+          </span>
+        )}
+      </p>
+
+      <StrengthBar score={score} />
     </div>
   )
 }
@@ -153,41 +278,22 @@ function CheckboxField({
 }
 
 export default function PasswordGenerator() {
-  const [batch, setBatch] = useState<GenerateResult[]>([])
+  const [batch, setBatch] = useState<BatchEntry[]>([])
   const [mounted, setMounted] = useState(false)
   const history = usePasswordHistory()
 
   const form = useForm<PasswordOptions>({
     resolver: zodResolver(PasswordOptionsSchema),
-    defaultValues: {
-      mode: 'password',
-      length: [16],
-      specials: true,
-      capitals: true,
-      numbers: true,
-      excludeAmbiguous: false,
-      wordCount: [4],
-      separator: '-',
-      capitalize: true,
-      addNumbers: false,
-    },
+    defaultValues: DEFAULT_OPTIONS,
   })
 
   const mode = form.watch('mode')
 
   useEffect(() => {
-    setBatch(generateBatch({
-      mode: 'password',
-      length: [16],
-      specials: true,
-      capitals: true,
-      numbers: true,
-      excludeAmbiguous: false,
-      wordCount: [4],
-      separator: '-',
-      capitalize: true,
-      addNumbers: false,
-    }))
+    setBatch(Array.from({ length: BATCH_SIZE }, () => ({
+      result: generateOne(DEFAULT_OPTIONS),
+      pinned: false,
+    })))
     setMounted(true)
   }, [])
 
@@ -204,26 +310,38 @@ export default function PasswordGenerator() {
   }, [])
 
   const onSubmit: SubmitHandler<PasswordOptions> = data => {
-    setBatch(generateBatch(data))
+    setBatch(prev => regenerateBatch(data, prev))
+  }
+
+  const applyPreset = (values: Partial<PasswordOptions>) => {
+    form.reset({ ...form.getValues(), ...values })
+    form.handleSubmit(onSubmit)()
+  }
+
+  const togglePin = (index: number) => {
+    setBatch(prev => prev.map((e, i) => i === index ? { ...e, pinned: !e.pinned } : e))
   }
 
   return (
     <div className="w-full max-w-lg">
       <div className="text-center mb-8">
         <h1 className="scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl">
-          SecureGen 🔐
+          SecureGen
         </h1>
-        <p className="text-slate-500 mt-2">
+        <p className="text-muted-foreground mt-2">
           Cryptographically secure passwords and passphrases
         </p>
       </div>
 
-      <div className="flex justify-center gap-2 mb-6">
+      <div className="flex justify-center gap-2 mb-4">
         <Button
           type="button"
           variant={mode === 'password' ? 'default' : 'outline'}
           size="sm"
-          onClick={() => form.setValue('mode', 'password')}
+          onClick={() => {
+            form.setValue('mode', 'password')
+            form.handleSubmit(onSubmit)()
+          }}
         >
           Password
         </Button>
@@ -231,16 +349,40 @@ export default function PasswordGenerator() {
           type="button"
           variant={mode === 'passphrase' ? 'default' : 'outline'}
           size="sm"
-          onClick={() => form.setValue('mode', 'passphrase')}
+          onClick={() => {
+            form.setValue('mode', 'passphrase')
+            form.handleSubmit(onSubmit)()
+          }}
         >
           Passphrase
         </Button>
       </div>
 
+      <div className="flex justify-center gap-1.5 mb-6 flex-wrap">
+        {PRESETS[mode].map(preset => (
+          <Button
+            key={preset.label}
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 px-3 text-xs rounded-full"
+            onClick={() => applyPreset({ ...preset.values })}
+          >
+            {preset.label}
+          </Button>
+        ))}
+      </div>
+
       {mounted && (
         <div className="space-y-2 mb-6" aria-live="polite" aria-label="Generated passwords">
-          {batch.map(([text, score], i) => (
-            <BatchRow key={i} text={text} score={score} onCopy={history.add} />
+          {batch.map((entry, i) => (
+            <BatchRow
+              key={i}
+              entry={entry}
+              index={i}
+              onPin={togglePin}
+              onCopy={history.add}
+            />
           ))}
         </div>
       )}
@@ -354,8 +496,8 @@ export default function PasswordGenerator() {
             REGENERATE ALL
           </Button>
 
-          <p className="text-xs text-slate-500 text-center">
-            💡 Tip: Press Ctrl+G (or Cmd+G) to regenerate
+          <p className="text-xs text-muted-foreground text-center">
+            Press Ctrl+G (or Cmd+G) to regenerate · pin rows to keep them
           </p>
         </form>
       </Form>

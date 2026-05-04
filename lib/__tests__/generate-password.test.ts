@@ -4,10 +4,10 @@ import generatePassword from '../generate-password'
 describe('generatePassword', () => {
   describe('return shape', () => {
     it('returns a tuple of [string, number, string]', () => {
-      const [password, score, feedback] = generatePassword(16, true, true, true)
+      const [password, score, crackTime] = generatePassword(16, true, true, true)
       expect(typeof password).toBe('string')
       expect(typeof score).toBe('number')
-      expect(typeof feedback).toBe('string')
+      expect(typeof crackTime).toBe('string')
     })
 
     it('returns a zxcvbn score between 0 and 4', () => {
@@ -18,9 +18,9 @@ describe('generatePassword', () => {
       }
     })
 
-    it('returns non-empty feedback string', () => {
-      const [, , feedback] = generatePassword(16, true, true, true)
-      expect(feedback.length).toBeGreaterThan(0)
+    it('returns non-empty crack time string', () => {
+      const [, , crackTime] = generatePassword(16, true, true, true)
+      expect(crackTime.length).toBeGreaterThan(0)
     })
   })
 

@@ -23,7 +23,7 @@ export default function generatePassphrase(
   }
 
   const result = zxcvbn(passphrase)
-  const feedback = result.feedback.suggestions.join(' ') || 'Strong passphrase'
+  const crackTime = String(result.crack_times_display.offline_slow_hashing_1e4_per_second)
 
-  return [passphrase, result.score, feedback]
+  return [passphrase, result.score, crackTime]
 }

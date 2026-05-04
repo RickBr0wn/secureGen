@@ -32,7 +32,7 @@ export default function generatePassword(
   }
 
   const result = zxcvbn(password)
-  const feedback = result.feedback.suggestions.join(' ') || 'Good password'
+  const crackTime = String(result.crack_times_display.offline_slow_hashing_1e4_per_second)
 
-  return [password, result.score, feedback]
+  return [password, result.score, crackTime]
 }

@@ -4,10 +4,10 @@ import generatePassphrase from '../generate-passphrase'
 describe('generatePassphrase', () => {
   describe('return shape', () => {
     it('returns a tuple of [string, number, string]', () => {
-      const [passphrase, score, feedback] = generatePassphrase(4, '-', false, false)
+      const [passphrase, score, crackTime] = generatePassphrase(4, '-', false, false)
       expect(typeof passphrase).toBe('string')
       expect(typeof score).toBe('number')
-      expect(typeof feedback).toBe('string')
+      expect(typeof crackTime).toBe('string')
     })
 
     it('returns a zxcvbn score between 0 and 4', () => {
