@@ -25,6 +25,7 @@ import { Slider } from '../ui/slider'
 import { useToast } from '../ui/use-toast'
 import generatePassword from '~/lib/generate-password'
 import generatePassphrase from '~/lib/generate-passphrase'
+import { compositionStats } from '~/lib/composition-stats'
 import { usePasswordHistory } from '~/lib/use-password-history'
 import { HistoryPanel } from './history-panel'
 
@@ -97,9 +98,14 @@ function BatchRow({ text, score, onCopy }: { text: string; score: number; onCopy
 
   return (
     <div className="flex items-center gap-3 rounded-lg border bg-card px-4 py-3 text-left transition-colors hover:bg-accent/50">
-      <span className="flex-1 font-mono text-sm break-all leading-relaxed">
-        {text}
-      </span>
+      <div className="flex-1 min-w-0">
+        <span className="font-mono text-sm break-all leading-relaxed">
+          {text}
+        </span>
+        <p className="text-xs text-slate-400 dark:text-slate-500 tabular-nums mt-0.5">
+          {compositionStats(text)}
+        </p>
+      </div>
       <StrengthDot score={score} />
       <Button
         type="button"
