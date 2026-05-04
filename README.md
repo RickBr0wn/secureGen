@@ -1,65 +1,115 @@
-# SecureGen 🔐
+# SecureGen
 
-### Password Generator
+Cryptographically secure password and passphrase generator — built with Next.js, React 19, and shadcn/ui.
 
-![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)
+**Live:** [secure-gen-three.vercel.app](https://secure-gen-three.vercel.app)
 
-SecureGen is a powerful password generator built with Next.js, ZOD, and React Hook Form, allowing users to create strong, secure passwords tailored to their needs. With customizable settings and intuitive design, SecureGen simplifies the process of generating and managing passwords for online security.
+![SecureGen](public/screenshots/screenshot.png)
 
-## Getting Started
-
-To use SecureGen, follow these steps:
-
-1. Clone the repository to your local machine:
-
-```bash
-git clone https://github.com/RickBr0wn/secureGen.git
-```
-
-2. Install dependencies:
-
-```bash
-npm install
-# or
-yarn install
-```
-
-3. Start the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-```
-
-The development server will be running at [http://localhost:3000](http://localhost:3000).
+---
 
 ## Features
 
-- Customize password complexity with toggle switches for capital letters, numbers, and special characters.
-- Adjust password length using a convenient slide bar.
-- Automatically copy generated passwords to clipboard for easy use.
-- Display security strength of generated password (low, medium, secure).
-- Intuitive and user-friendly interface.
+### Password generation
 
-## Testing
+- Configurable length (8–32 characters)
+- Toggle special characters, capitals, and numbers independently
+- Exclude ambiguous characters (0/O, 1/l/I)
+- Uses `crypto.getRandomValues` — no `Math.random()`
 
-SecureGen includes testing support with Jest. To run tests, use the following command:
+### Passphrase generation
+
+- 3–10 words from a curated wordlist
+- Separator options: hyphen, dot, underscore, space, or none
+- Capitalize first letter of each word
+- Optionally append a random number
+
+### Batch output
+
+- Generates 5 results at a time
+- **Pin individual rows** — locked rows survive Regenerate All
+- **Strength bar** — 5-segment visual indicator (Very Weak → Very Strong) powered by [zxcvbn](https://github.com/dropbox/zxcvbn)
+- **Crack time estimate** — shown per row (e.g. "centuries to crack")
+- **Composition stats** — character count, symbol count, capitals, numbers
+
+### Security tools
+
+- **HaveIBeenPwned check** — per-row k-anonymity breach lookup; only the first 5 hex chars of the SHA-1 hash are sent, the full password never leaves your device
+- **Opt-in history** — copies saved to `localStorage`, max 10 entries, disabled by default; masked by default with reveal toggle
+
+### UX
+
+- **Quick presets** — Simple / Strong / Max for passwords; 4 words / 6 words / With number for passphrases
+- **Keyboard shortcut** — `Ctrl+G` / `Cmd+G` to regenerate
+- Dark / light / system theme
+- Copy to clipboard with inline confirmation
+
+---
+
+## Stack
+
+| Layer            | Choice                    |
+| ---------------- | ------------------------- |
+| Framework        | Next.js 16 (App Router)   |
+| UI               | shadcn/ui + Tailwind CSS  |
+| Forms            | React Hook Form + Zod     |
+| Strength scoring | zxcvbn                    |
+| Icons            | Lucide React              |
+| Testing          | Vitest + Testing Library  |
+| Hosting          | Vercel                    |
+
+---
+
+## Getting started
 
 ```bash
-npm test
-# or
-yarn test
+git clone https://github.com/RickBr0wn/secureGen.git
+cd secureGen
+npm install
+npm run dev
 ```
 
-## Contributing
+Open [http://localhost:3000](http://localhost:3000).
 
-Please refer to the [CONTRIBUTING.md](https://gist.github.com/RickBr0wn/0b4a139f833e0d0bafddb0d043644b20) for guidelines on contributing to SecureGen.
+### Run tests
 
-## Author
+```bash
+npm test            # single run
+npm run test:watch  # watch mode
+```
 
-- **Your Name** - _Initial work_ - [RickBr0wn](https://github.com/RickBr0wn)
+---
+
+## Project structure
+
+```text
+app/                  # Next.js app router
+components/
+  password-generator/
+    generator.tsx     # main component — batch, presets, pin, HIBP
+    history-panel.tsx # collapsible history with masked reveal
+  ui/                 # shadcn/ui primitives
+lib/
+  generate-password.ts    # crypto-secure password + zxcvbn scoring
+  generate-passphrase.ts  # wordlist-based passphrase + zxcvbn scoring
+  check-pwned.ts          # k-anonymity HaveIBeenPwned API client
+  composition-stats.ts    # character composition summary string
+  use-password-history.ts # localStorage-backed history hook
+  __tests__/              # Vitest unit tests
+public/
+  words.json          # curated wordlist (599 words)
+```
+
+---
+
+## Privacy
+
+- Entirely client-side — no passwords are transmitted to any server
+- History is opt-in and stored only in your browser's `localStorage`
+- HaveIBeenPwned checks use [k-anonymity](https://haveibeenpwned.com/API/v3#SearchingPwnedPasswordsByRange): only the first 5 characters of a SHA-1 hash are sent
+
+---
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE.md](https://gist.github.com/RickBr0wn/5f95ee6118bb32034e2b94acbd88a99d) file for details.
+MIT — see [LICENSE.md](https://gist.github.com/RickBr0wn/5f95ee6118bb32034e2b94acbd88a99d)
