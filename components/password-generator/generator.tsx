@@ -106,7 +106,7 @@ export default function PasswordGenerator() {
           )
         : generatePassphrase(
             data.wordCount[0],
-            data.separator,
+            data.separator === 'none' ? '' : data.separator,
             data.capitalize,
             data.addNumbers,
           )
@@ -345,7 +345,7 @@ export default function PasswordGenerator() {
                         <SelectItem value=".">Dot (.)</SelectItem>
                         <SelectItem value="_">Underscore (_)</SelectItem>
                         <SelectItem value=" ">Space ( )</SelectItem>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                       </SelectContent>
                     </Select>
                   </FormItem>
