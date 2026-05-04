@@ -25,6 +25,8 @@ import { Slider } from '../ui/slider'
 import { useToast } from '../ui/use-toast'
 import generatePassword from '~/lib/generate-password'
 import generatePassphrase from '~/lib/generate-passphrase'
+import { usePasswordHistory } from '~/lib/use-password-history'
+import { HistoryPanel } from './history-panel'
 
 const BATCH_SIZE = 5
 const STRENGTH_LABELS = ['Very Weak', 'Weak', 'Fair', 'Strong', 'Very Strong']
@@ -74,7 +76,7 @@ function StrengthDot({ score }: { score: number }) {
   )
 }
 
-function BatchRow({ text, score }: { text: string; score: number }) {
+function BatchRow({ text, score, onCopy }: { text: string; score: number; onCopy: (text: string) => void }) {
   const [copied, setCopied] = useState(false)
   const { toast } = useToast()
 
@@ -82,6 +84,7 @@ function BatchRow({ text, score }: { text: string; score: number }) {
     try {
       await navigator.clipboard.writeText(text)
       setCopied(true)
+      onCopy(text)
       setTimeout(() => setCopied(false), 2000)
     } catch {
       toast({
@@ -146,6 +149,7 @@ function CheckboxField({
 export default function PasswordGenerator() {
   const [batch, setBatch] = useState<GenerateResult[]>([])
   const [mounted, setMounted] = useState(false)
+  const history = usePasswordHistory()
 
   const form = useForm<PasswordOptions>({
     resolver: zodResolver(PasswordOptionsSchema),
@@ -230,7 +234,7 @@ export default function PasswordGenerator() {
       {mounted && (
         <div className="space-y-2 mb-6" aria-live="polite" aria-label="Generated passwords">
           {batch.map(([text, score], i) => (
-            <BatchRow key={i} text={text} score={score} />
+            <BatchRow key={i} text={text} score={score} onCopy={history.add} />
           ))}
         </div>
       )}
@@ -349,6 +353,23 @@ export default function PasswordGenerator() {
           </p>
         </form>
       </Form>
+
+      {history.hydrated && (
+        <div className="mt-6 space-y-3">
+          <label className="flex items-center gap-2 text-sm cursor-pointer w-fit mx-auto">
+            <input
+              type="checkbox"
+              checked={history.enabled}
+              onChange={history.toggle}
+              className="rounded"
+            />
+            Save to history
+          </label>
+          {history.enabled && (
+            <HistoryPanel entries={history.history} onClear={history.clear} />
+          )}
+        </div>
+      )}
     </div>
   )
 }
