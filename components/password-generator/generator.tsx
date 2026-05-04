@@ -40,12 +40,12 @@ import {
 
 const PasswordOptionsSchema = z.object({
   mode: z.enum(['password', 'passphrase']).default('password'),
-  length: z.number().array(),
+  length: z.array(z.number()),
   specials: z.boolean(),
   capitals: z.boolean(),
   numbers: z.boolean(),
   excludeAmbiguous: z.boolean(),
-  wordCount: z.number().array(),
+  wordCount: z.array(z.number()),
   separator: z.string(),
   capitalize: z.boolean(),
   addNumbers: z.boolean(),
@@ -54,7 +54,11 @@ const PasswordOptionsSchema = z.object({
 type PasswordOptions = z.infer<typeof PasswordOptionsSchema>
 
 export default function PasswordGenerator() {
-  const [password, setPassword] = useState<[string, number, string]>(['', 0, ''])
+  const [password, setPassword] = useState<[string, number, string]>([
+    '',
+    0,
+    '',
+  ])
   const [mounted, setMounted] = useState(false)
   const [mode, setMode] = useState<'password' | 'passphrase'>('password')
 
@@ -228,8 +232,8 @@ export default function PasswordGenerator() {
                         max={32}
                         min={8}
                         step={1}
+                        defaultValue={field.value ?? [16]}
                         onValueChange={field.onChange}
-                        {...field}
                       />
                     </FormControl>
                   </FormItem>
@@ -320,8 +324,8 @@ export default function PasswordGenerator() {
                         max={10}
                         min={3}
                         step={1}
+                        defaultValue={field.value ?? [4]}
                         onValueChange={field.onChange}
-                        {...field}
                       />
                     </FormControl>
                   </FormItem>
