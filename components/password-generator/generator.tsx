@@ -2,7 +2,7 @@
 
 import { Button } from '../ui/button'
 import { Checkbox } from '../ui/checkbox'
-import { SubmitHandler, useForm } from 'react-hook-form'
+import { Control, SubmitHandler, useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
@@ -11,7 +11,6 @@ import {
   FormField,
   FormItem,
   FormLabel,
-  FormMessage,
 } from '../ui/form'
 import generatePassword from '~/lib/generate-password'
 import generatePassphrase from '~/lib/generate-passphrase'
@@ -27,16 +26,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../ui/select'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-} from '../ui/dropdown-menu'
 
 const PasswordOptionsSchema = z.object({
   mode: z.enum(['password', 'passphrase']).default('password'),
@@ -53,14 +42,43 @@ const PasswordOptionsSchema = z.object({
 
 type PasswordOptions = z.infer<typeof PasswordOptionsSchema>
 
+type BooleanFieldName = {
+  [K in keyof PasswordOptions]: PasswordOptions[K] extends boolean ? K : never
+}[keyof PasswordOptions]
+
+function CheckboxField({
+  control,
+  name,
+  label,
+}: {
+  control: Control<PasswordOptions>
+  name: BooleanFieldName
+  label: string
+}) {
+  return (
+    <FormField
+      control={control}
+      name={name}
+      render={({ field }) => (
+        <FormItem>
+          <FormControl>
+            <Checkbox
+              checked={field.value as boolean}
+              onCheckedChange={field.onChange}
+            />
+          </FormControl>
+          <FormLabel className="ml-2">{label}</FormLabel>
+        </FormItem>
+      )}
+    />
+  )
+}
+
+const STRENGTH_LABELS = ['Very Weak', 'Weak', 'Fair', 'Strong', 'Very Strong']
+
 export default function PasswordGenerator() {
-  const [password, setPassword] = useState<[string, number, string]>([
-    '',
-    0,
-    '',
-  ])
+  const [password, setPassword] = useState<[string, number, string]>(['', 0, ''])
   const [mounted, setMounted] = useState(false)
-  const [mode, setMode] = useState<'password' | 'passphrase'>('password')
 
   const { toast } = useToast()
 
@@ -80,13 +98,13 @@ export default function PasswordGenerator() {
     },
   })
 
-  // Initialize password on client only (prevents hydration mismatch)
+  const mode = form.watch('mode')
+
   useEffect(() => {
     setPassword(generatePassword(16, true, true, true))
     setMounted(true)
   }, [])
 
-  // Keyboard shortcut: Ctrl/Cmd+G to generate
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
@@ -96,11 +114,12 @@ export default function PasswordGenerator() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [form])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const onSubmit: SubmitHandler<PasswordOptions> = async data => {
     const newPassword =
-      mode === 'password'
+      data.mode === 'password'
         ? generatePassword(
             data.length[0],
             data.specials,
@@ -133,25 +152,8 @@ export default function PasswordGenerator() {
     }
   }
 
-  const handleModeChange = (newMode: 'password' | 'passphrase') => {
-    setMode(newMode)
-    form.setValue('mode', newMode)
-  }
-
-  const scoreToPercentage = (score: number) => (score + 1) * 20
-  const scoreToColor = (score: number) => {
-    const colors = [
-      'bg-red-500',
-      'bg-red-500',
-      'bg-yellow-500',
-      'bg-blue-500',
-      'bg-green-500',
-    ]
-    return colors[score] || 'bg-red-500'
-  }
-
   return (
-    <div className="text-center">
+    <div className="text-center w-full max-w-md">
       <div>
         <h1 className="scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl">
           SecureGen 🔐
@@ -161,13 +163,12 @@ export default function PasswordGenerator() {
         </p>
       </div>
 
-      {/* Mode Toggle */}
       <div className="my-6 flex justify-center gap-2">
         <Button
           type="button"
           variant={mode === 'password' ? 'default' : 'outline'}
           size="sm"
-          onClick={() => handleModeChange('password')}
+          onClick={() => form.setValue('mode', 'password')}
         >
           Password
         </Button>
@@ -175,7 +176,7 @@ export default function PasswordGenerator() {
           type="button"
           variant={mode === 'passphrase' ? 'default' : 'outline'}
           size="sm"
-          onClick={() => handleModeChange('passphrase')}
+          onClick={() => form.setValue('mode', 'passphrase')}
         >
           Passphrase
         </Button>
@@ -183,29 +184,23 @@ export default function PasswordGenerator() {
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
-          {/* Password Display */}
           {mounted && (
-            <div className="my-10 w-fit mx-auto">
-              <p className="scroll-m-20 xs:text-lg sm:text-2xl font-extrabold tracking-tight">
+            <div className="my-10 w-full min-h-[3.5rem] flex items-center justify-center">
+              <p className="scroll-m-20 xs:text-lg sm:text-2xl font-extrabold tracking-tight break-all">
                 {password[0]}
               </p>
             </div>
           )}
 
-          {/* Strength Meter */}
           {mounted && (
             <div className="my-6 w-full max-w-sm mx-auto">
               <div className="flex items-center gap-2 mb-2">
                 <Progress
-                  value={scoreToPercentage(password[1])}
+                  value={(password[1] + 1) * 20}
                   className="flex-1"
                 />
                 <span className="text-xs font-medium text-slate-500">
-                  {
-                    ['Very Weak', 'Weak', 'Fair', 'Strong', 'Very Strong'][
-                      password[1]
-                    ]
-                  }
+                  {STRENGTH_LABELS[password[1]]}
                 </span>
               </div>
               {password[2] && (
@@ -216,7 +211,6 @@ export default function PasswordGenerator() {
             </div>
           )}
 
-          {/* Password Mode Controls */}
           {mode === 'password' && (
             <>
               <FormField
@@ -241,51 +235,9 @@ export default function PasswordGenerator() {
               />
 
               <div className="flex gap-6 items-center mb-6 justify-center">
-                <FormField
-                  control={form.control}
-                  name="specials"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormLabel className="ml-2">Specials</FormLabel>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="capitals"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormLabel className="ml-2">Capitals</FormLabel>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="numbers"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormLabel className="ml-2">Numbers</FormLabel>
-                    </FormItem>
-                  )}
-                />
+                <CheckboxField control={form.control} name="specials" label="Specials" />
+                <CheckboxField control={form.control} name="capitals" label="Capitals" />
+                <CheckboxField control={form.control} name="numbers" label="Numbers" />
               </div>
 
               <FormField
@@ -308,7 +260,6 @@ export default function PasswordGenerator() {
             </>
           )}
 
-          {/* Passphrase Mode Controls */}
           {mode === 'passphrase' && (
             <>
               <FormField
@@ -357,36 +308,8 @@ export default function PasswordGenerator() {
               />
 
               <div className="flex gap-6 items-center mb-6 justify-center">
-                <FormField
-                  control={form.control}
-                  name="capitalize"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormLabel className="ml-2">Capitalize</FormLabel>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="addNumbers"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormLabel className="ml-2">Add numbers</FormLabel>
-                    </FormItem>
-                  )}
-                />
+                <CheckboxField control={form.control} name="capitalize" label="Capitalize" />
+                <CheckboxField control={form.control} name="addNumbers" label="Add numbers" />
               </div>
             </>
           )}
