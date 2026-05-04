@@ -1,23 +1,22 @@
 import zxcvbn from 'zxcvbn'
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const words: string[] = require('../public/words.json') as string[]
+
 export default function generatePassphrase(
   wordCount: number,
   separator: string = '-',
   capitalize: boolean = false,
   addNumbers: boolean = false
 ): [string, number, string] {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const words: string[] = require('../public/words.json') as string[]
-
   const randomInts = crypto.getRandomValues(new Uint32Array(wordCount))
-  const selectedWords = Array.from(randomInts).map(num => words[num % words.length])
-
-  let processedWords = selectedWords
-  if (capitalize) {
-    processedWords = selectedWords.map(w => w.charAt(0).toUpperCase() + w.slice(1))
+  const selectedWords: string[] = []
+  for (let i = 0; i < randomInts.length; i++) {
+    const word = words[randomInts[i] % words.length]
+    selectedWords.push(capitalize ? word.charAt(0).toUpperCase() + word.slice(1) : word)
   }
 
-  let passphrase = processedWords.join(separator)
+  let passphrase = selectedWords.join(separator)
   if (addNumbers) {
     const num = crypto.getRandomValues(new Uint32Array(1))[0] % 100
     passphrase += separator + num
@@ -28,4 +27,3 @@ export default function generatePassphrase(
 
   return [passphrase, result.score, feedback]
 }
-
