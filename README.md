@@ -110,6 +110,12 @@ public/
 
 ---
 
-## License
+## Contributing
 
-MIT — see [LICENSE.md](https://gist.github.com/RickBr0wn/5f95ee6118bb32034e2b94acbd88a99d)
+Contributions are welcome — please read [CONTRIBUTIONS.md](CONTRIBUTIONS.md) before opening a pull request.
+
+---
+
+## Licence
+
+MIT — see [LICENCE.md](LICENCE.md)
