@@ -54,9 +54,8 @@ const PasswordOptionsSchema = z.object({
 type PasswordOptions = z.infer<typeof PasswordOptionsSchema>
 
 export default function PasswordGenerator() {
-  const [password, setPassword] = useState<[string, number, string]>(
-    generatePassword(16, true, true, true)
-  )
+  const [password, setPassword] = useState<[string, number, string]>(['', 0, ''])
+  const [mounted, setMounted] = useState(false)
   const [mode, setMode] = useState<'password' | 'passphrase'>('password')
 
   const { toast } = useToast()
@@ -77,6 +76,12 @@ export default function PasswordGenerator() {
     },
   })
 
+  // Initialize password on client only (prevents hydration mismatch)
+  useEffect(() => {
+    setPassword(generatePassword(16, true, true, true))
+    setMounted(true)
+  }, [])
+
   // Keyboard shortcut: Ctrl/Cmd+G to generate
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -89,7 +94,7 @@ export default function PasswordGenerator() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [form])
 
-  const onSubmit: SubmitHandler<PasswordOptions> = async (data) => {
+  const onSubmit: SubmitHandler<PasswordOptions> = async data => {
     const newPassword =
       mode === 'password'
         ? generatePassword(
@@ -97,9 +102,14 @@ export default function PasswordGenerator() {
             data.specials,
             data.capitals,
             data.numbers,
-            data.excludeAmbiguous
+            data.excludeAmbiguous,
           )
-        : generatePassphrase(data.wordCount[0], data.separator, data.capitalize, data.addNumbers)
+        : generatePassphrase(
+            data.wordCount[0],
+            data.separator,
+            data.capitalize,
+            data.addNumbers,
+          )
 
     setPassword(newPassword)
 
@@ -112,7 +122,8 @@ export default function PasswordGenerator() {
     } catch {
       toast({
         title: 'Copy failed',
-        description: 'Could not access clipboard. Please copy the password manually.',
+        description:
+          'Could not access clipboard. Please copy the password manually.',
         variant: 'destructive',
       })
     }
@@ -125,7 +136,13 @@ export default function PasswordGenerator() {
 
   const scoreToPercentage = (score: number) => (score + 1) * 20
   const scoreToColor = (score: number) => {
-    const colors = ['bg-red-500', 'bg-red-500', 'bg-yellow-500', 'bg-blue-500', 'bg-green-500']
+    const colors = [
+      'bg-red-500',
+      'bg-red-500',
+      'bg-yellow-500',
+      'bg-blue-500',
+      'bg-green-500',
+    ]
     return colors[score] || 'bg-red-500'
   }
 
@@ -163,24 +180,37 @@ export default function PasswordGenerator() {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           {/* Password Display */}
-          <div className="my-10 w-fit mx-auto">
-            <p className="scroll-m-20 xs:text-lg sm:text-2xl font-extrabold tracking-tight">
-              {password[0]}
-            </p>
-          </div>
+          {mounted && (
+            <div className="my-10 w-fit mx-auto">
+              <p className="scroll-m-20 xs:text-lg sm:text-2xl font-extrabold tracking-tight">
+                {password[0]}
+              </p>
+            </div>
+          )}
 
           {/* Strength Meter */}
-          <div className="my-6 w-full max-w-sm mx-auto">
-            <div className="flex items-center gap-2 mb-2">
-              <Progress value={scoreToPercentage(password[1])} className="flex-1" />
-              <span className="text-xs font-medium text-slate-500">
-                {['Very Weak', 'Weak', 'Fair', 'Strong', 'Very Strong'][password[1]]}
-              </span>
+          {mounted && (
+            <div className="my-6 w-full max-w-sm mx-auto">
+              <div className="flex items-center gap-2 mb-2">
+                <Progress
+                  value={scoreToPercentage(password[1])}
+                  className="flex-1"
+                />
+                <span className="text-xs font-medium text-slate-500">
+                  {
+                    ['Very Weak', 'Weak', 'Fair', 'Strong', 'Very Strong'][
+                      password[1]
+                    ]
+                  }
+                </span>
+              </div>
+              {password[2] && (
+                <p className="text-xs text-slate-600 dark:text-slate-400 text-left">
+                  {password[2]}
+                </p>
+              )}
             </div>
-            {password[2] && (
-              <p className="text-xs text-slate-600 dark:text-slate-400 text-left">{password[2]}</p>
-            )}
-          </div>
+          )}
 
           {/* Password Mode Controls */}
           {mode === 'password' && (
@@ -190,7 +220,9 @@ export default function PasswordGenerator() {
                 name="length"
                 render={({ field }) => (
                   <FormItem className="my-6">
-                    <FormLabel className="text-left block">Length: {field.value?.[0] || 16}</FormLabel>
+                    <FormLabel className="text-left block">
+                      Length: {field.value?.[0] || 16}
+                    </FormLabel>
                     <FormControl>
                       <Slider
                         max={32}
@@ -211,7 +243,10 @@ export default function PasswordGenerator() {
                   render={({ field }) => (
                     <FormItem>
                       <FormControl>
-                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
                       </FormControl>
                       <FormLabel className="ml-2">Specials</FormLabel>
                     </FormItem>
@@ -223,7 +258,10 @@ export default function PasswordGenerator() {
                   render={({ field }) => (
                     <FormItem>
                       <FormControl>
-                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
                       </FormControl>
                       <FormLabel className="ml-2">Capitals</FormLabel>
                     </FormItem>
@@ -235,7 +273,10 @@ export default function PasswordGenerator() {
                   render={({ field }) => (
                     <FormItem>
                       <FormControl>
-                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
                       </FormControl>
                       <FormLabel className="ml-2">Numbers</FormLabel>
                     </FormItem>
@@ -249,9 +290,14 @@ export default function PasswordGenerator() {
                 render={({ field }) => (
                   <FormItem className="mb-6 flex items-center justify-center gap-2">
                     <FormControl>
-                      <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
                     </FormControl>
-                    <FormLabel className="m-0">Exclude ambiguous (0/O, 1/l/I)</FormLabel>
+                    <FormLabel className="m-0">
+                      Exclude ambiguous (0/O, 1/l/I)
+                    </FormLabel>
                   </FormItem>
                 )}
               />
@@ -266,7 +312,9 @@ export default function PasswordGenerator() {
                 name="wordCount"
                 render={({ field }) => (
                   <FormItem className="my-6">
-                    <FormLabel className="text-left block">Words: {field.value?.[0] || 4}</FormLabel>
+                    <FormLabel className="text-left block">
+                      Words: {field.value?.[0] || 4}
+                    </FormLabel>
                     <FormControl>
                       <Slider
                         max={10}
@@ -311,7 +359,10 @@ export default function PasswordGenerator() {
                   render={({ field }) => (
                     <FormItem>
                       <FormControl>
-                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
                       </FormControl>
                       <FormLabel className="ml-2">Capitalize</FormLabel>
                     </FormItem>
@@ -323,7 +374,10 @@ export default function PasswordGenerator() {
                   render={({ field }) => (
                     <FormItem>
                       <FormControl>
-                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
                       </FormControl>
                       <FormLabel className="ml-2">Add numbers</FormLabel>
                     </FormItem>
@@ -337,7 +391,9 @@ export default function PasswordGenerator() {
             GENERATE NEW {mode === 'password' ? 'PASSWORD' : 'PASSPHRASE'}
           </Button>
 
-          <p className="text-xs text-slate-500 mt-4">💡 Tip: Press Ctrl+G (or Cmd+G) to generate</p>
+          <p className="text-xs text-slate-500 mt-4">
+            💡 Tip: Press Ctrl+G (or Cmd+G) to generate
+          </p>
         </form>
       </Form>
     </div>
